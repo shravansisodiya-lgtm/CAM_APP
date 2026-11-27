@@ -399,11 +399,30 @@ def page_settings():
         if col.button(f"Test {lvl}"):
             url = db.get_setting(f"webhook_url_{lvl}", "").strip()
             err = send_test(url, f"🔔 Test alert ({lvl.upper()} priority) - {stamp}") if url else "No webhook saved for that priority."
-            st.error(err) if err else st.success(f"{lvl.capitalize()} test sent.")
+            if err:
+                st.error(err)
+            else:
+                st.success(f"{lvl.capitalize()} test sent.")
     if cols[3].button("Test admin"):
         url = db.get_setting("admin_webhook_url", "").strip()
         err = send_test(url, f"🔔 Test alert (admin channel) - {stamp}") if url else "No admin webhook saved."
-        st.error(err) if err else st.success("Admin test sent.")
+        if err:
+            st.error(err)
+        else:
+            st.success("Admin test sent.")
+
+    st.markdown("**Check the real alert path**")
+    st.caption("The test buttons above post straight to Google Chat. Real alerts go through the monitor's "
+               "background sender. This button sends the priority summaries through that same path.")
+    if st.button("Send summary now (real alert path)"):
+        monitor.send_priority_summaries()
+        st.info("Queued. Within a few seconds a summary should arrive in each priority's Chat space "
+                "(only priorities that have a webhook and at least one camera). Check the log below.")
+
+    st.markdown("**Monitor log** (newest last)")
+    log_rows = monitor.recent_log(60)
+    st.code("\n".join(log_rows) if log_rows else "(log is empty)", language=None)
+    st.caption("Look for lines like 'ALERT NOT SENT', 'Webhook returned HTTP ...' or 'Sending HIGH alert'.")
 
 
 # ------------------------------------------------------------------ users ---

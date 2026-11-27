@@ -33,11 +33,24 @@ shutdown_event = threading.Event()
 
 def log_message(message):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"[monitor] {message}", flush=True)   # also visible in the host's log viewer
     try:
         with open(LOG_FILE, "a", encoding="utf-8") as f:
             f.write(f"[{timestamp}] {message}\n")
     except Exception:
         pass
+
+
+def recent_log(lines=60, only_important=True):
+    """Last log lines, newest last. only_important hides the noisy per-camera DOWN lines."""
+    try:
+        with open(LOG_FILE, "r", encoding="utf-8") as f:
+            rows = f.read().splitlines()
+    except Exception:
+        return []
+    if only_important:
+        rows = [r for r in rows if "] DOWN:" not in r]
+    return rows[-lines:]
 
 
 def _configured_webhooks():
