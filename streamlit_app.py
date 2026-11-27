@@ -420,7 +420,11 @@ def page_settings():
                 "(only priorities that have a webhook and at least one camera). Check the log below.")
 
     st.markdown("**Monitor log** (newest last)")
-    log_rows = monitor.recent_log(60)
+    try:  # reads the log file directly, so it works even with an older monitor.py
+        with open(monitor.LOG_FILE, "r", encoding="utf-8") as _f:
+            log_rows = [r for r in _f.read().splitlines() if "] DOWN:" not in r][-60:]
+    except Exception:
+        log_rows = []
     st.code("\n".join(log_rows) if log_rows else "(log is empty)", language=None)
     st.caption("Look for lines like 'ALERT NOT SENT', 'Webhook returned HTTP ...' or 'Sending HIGH alert'.")
 
