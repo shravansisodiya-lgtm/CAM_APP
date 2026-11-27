@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% block title %}Users - {{ org_name }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">User management</div>
+    <div class="page-sub">{{ users|length }} account{{ 's' if users|length != 1 else '' }}. Admins get full access; Users can view but not change cameras or settings.</div>
+  </div>
+  <button class="btn btn-primary" id="btn-add-user">+ Add user</button>
+</div>
+
+<div class="card">
+  <table class="data-table">
+    <thead><tr><th>Username</th><th>Role</th><th>Phone</th><th>Branch access</th><th>Status</th><th>Created</th><th></th></tr></thead>
+    <tbody id="user-table-body">
+      {% for u in users %}
+      <tr data-id="{{ u.id }}" data-username="{{ u.username }}" data-role="{{ u.role }}" data-phone="{{ u.phone_number or '' }}" data-branches='{{ u.branch_list | tojson if u.branch_list is not none else "" }}' data-active="{{ u.is_active }}">
+        <td>{{ u.username }}</td>
+        <td><span class="badge role-{{ u.role }}">{{ u.role|capitalize }}</span></td>
+        <td class="ip-cell">{{ u.phone_number or '—' }}</td>
+        <td>
+          {% if u.role == 'admin' or u.branch_list is none %}<span class="badge role-user">All branches</span>
+          {% elif u.branch_list %}{% for b in u.branch_list %}<span class="badge branch-chip">{{ b }}</span> {% endfor %}
+          {% else %}<span class="badge offline">No branches</span>{% endif %}
+        </td>
+        <td>
+          {% if u.is_active %}<span class="badge online"><span class="dot"></span>Active</span>
+          {% else %}<span class="badge offline"><span class="dot"></span>Disabled</span>{% endif %}
+        </td>
+        <td class="ip-cell">{{ u.created_at.split('.')[0].replace('T',' ') if u.created_at else '—' }}</td>
+        <td>
+          <div class="btn-row">
+            <button class="btn btn-sm btn-edit-user">Edit</button>
+            <button class="btn btn-sm btn-reset-user-password">Reset password</button>
+            <button class="btn btn-sm btn-danger btn-delete-user">Delete</button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<div class="modal-backdrop" id="user-modal">
+  <div class="modal modal-wide">
+    <h3 id="user-modal-title">Add user</h3>
+    <div class="form-error" id="user-modal-error"></div>
+    <input type="hidden" id="user-id">
+    <div class="field"><label for="user-username">Username</label><input type="text" id="user-username" placeholder="e.g. security_guard"></div>
+    <div class="field" id="user-password-field"><label for="user-password">Password</label><input type="password" id="user-password" placeholder="At least 6 characters">
+      <div class="field-hint" id="user-password-hint">Leave blank to keep the current password (only when editing).</div></div>
+    <div class="field"><label for="user-phone">Phone number (optional)</label><input type="text" id="user-phone" placeholder="e.g. +91 98765 43210"></div>
+    <div class="field">
+      <label for="user-role">Role</label>
+      <select id="user-role">
+        <option value="user" selected>User (view only)</option>
+        <option value="admin">Admin (full access)</option>
+      </select>
+    </div>
+    <div class="field" id="user-branch-field">
+      <label>Branch access</label>
+      <label class="check-row"><input type="checkbox" id="user-all-branches" checked> <strong>All branches</strong></label>
+      <div class="branch-checklist" id="user-branch-list">
+        {% for b in branches %}
+        <label class="check-row"><input type="checkbox" class="user-branch-cb" value="{{ b.branch }}"> {{ b.branch }} <span class="pill-count">{{ b.total }} cam</span></label>
+        {% else %}
+        <div class="field-hint">No branches yet - add cameras first.</div>
+        {% endfor %}
+      </div>
+      <div class="field-hint">Untick "All branches" to pick one or more. The user will only see those branches' cameras, alerts and counts. Admins always see everything.</div>
+    </div>
+    <div class="field" id="user-active-field" style="display:none;">
+      <label for="user-active">Status</label>
+      <select id="user-active">
+        <option value="1" selected>Active</option>
+        <option value="0">Disabled</option>
+      </select>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancel-user-modal">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-user">Save user</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="delete-user-modal">
+  <div class="modal">
+    <h3>Remove this user?</h3>
+    <p style="color:var(--text-dim); font-size:14px;" id="delete-user-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancel-delete-user">Cancel</button>
+      <button class="btn btn-danger" id="btn-confirm-delete-user">Remove user</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="reset-password-modal">
+  <div class="modal">
+    <h3>New password generated</h3>
+    <p style="color:var(--text-dim); font-size:13px;">Copy this now and share it with the user directly - it won't be shown again.</p>
+    <div class="field"><input type="text" id="generated-password" readonly style="font-family:var(--font-mono); font-weight:700;"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-copy-password">Copy</button>
+      <button class="btn btn-primary" id="btn-close-reset-modal">Done</button>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/users.js') }}"></script>
+{% endblock %}

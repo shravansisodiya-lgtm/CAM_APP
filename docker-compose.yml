@@ -1,0 +1,14 @@
+services:
+  camera-monitor:
+    build: .
+    restart: always
+    ports:
+      - "80:5000"
+    env_file:
+      - .env
+    environment:
+      COOKIE_SECURE: "0"   # set to 1 once you serve it over HTTPS
+    volumes:
+      - camera_data:/data
+volumes:
+  camera_data:

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Alerts - {{ org_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Alert history</div><div class="page-sub">Most recent {{ alerts|length }} events.</div></div>
+</div>
+<div class="card">
+  {% if alerts %}
+  <table class="data-table">
+    <thead><tr><th>Type</th><th>Camera</th><th>IP</th><th>Message</th><th>Time</th></tr></thead>
+    <tbody>
+      {% for a in alerts %}
+      <tr>
+        <td>
+          {% if a.alert_type == 'OFFLINE' %}<span class="badge offline"><span class="dot"></span>Offline</span>
+          {% elif a.alert_type == 'ONLINE' %}<span class="badge online"><span class="dot"></span>Online</span>
+          {% else %}<span class="badge" style="background:var(--accent-soft); color:var(--accent);"><span class="dot"></span>System</span>{% endif %}
+        </td>
+        <td>{{ a.camera_name or '—' }}</td>
+        <td class="ip-cell">{{ a.camera_ip or '—' }}</td>
+        <td>{{ a.message }}</td>
+        <td class="ip-cell">{{ a.created_at.split('.')[0].replace('T', ' ') }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><div class="big">No alerts yet</div><div>Offline/online events will show up here.</div></div>
+  {% endif %}
+</div>
+{% endblock %}

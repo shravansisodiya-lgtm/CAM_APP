@@ -1,0 +1,28 @@
+# Render "Blueprint": one-click deploy of the free plan.
+services:
+  - type: web
+    name: camera-monitor
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: COOKIE_SECURE
+        value: "1"
+      - key: TZ
+        value: Asia/Kolkata
+      - key: ADMIN_USERNAME
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ORG_NAME
+        sync: false
+      - key: WEBHOOK_URL_HIGH
+        sync: false
+      - key: WEBHOOK_URL_MEDIUM
+        sync: false
+      - key: WEBHOOK_URL_LOW
+        sync: false
+      - key: CAMERAS_DATA
+        sync: false

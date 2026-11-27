@@ -1,0 +1,129 @@
+{% extends "base.html" %}
+{% block title %}Settings - {{ org_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div><div class="page-title">Settings</div><div class="page-sub">Changes take effect on the next check cycle.</div></div>
+</div>
+
+<form method="POST">
+  <div class="card">
+    <div class="form-grid">
+      <div class="field full"><label for="org_name">Dashboard name</label><input type="text" id="org_name" name="org_name" value="{{ settings.org_name }}"></div>
+      <div class="field"><label for="check_interval">Check interval (seconds)</label><input type="number" id="check_interval" name="check_interval" min="5" value="{{ settings.check_interval }}">
+        <div class="field-hint">How often every camera gets pinged.</div></div>
+      <div class="field"><label for="summary_interval">Summary report interval (seconds)</label><input type="number" id="summary_interval" name="summary_interval" min="60" value="{{ settings.summary_interval }}">
+        <div class="field-hint">Each priority's summary is sent only to that priority's own webhook below (High → High, Medium → Medium, Low → Low).</div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="priority-section priority-high">
+      <div class="priority-heading">🔴 High priority cameras</div>
+      <p class="field-hint" style="margin-bottom:14px;">Alerts fire fastest here - use this for the cameras you can't afford to miss.</p>
+      <div class="form-grid">
+        <div class="field full"><label for="webhook_url_high">Webhook URL</label><input type="text" id="webhook_url_high" name="webhook_url_high" value="{{ settings.webhook_url_high }}" placeholder="https://chat.googleapis.com/...">
+          <div class="field-hint">Leave blank to pause High priority notifications.</div></div>
+        <div class="field"><label for="offline_threshold_high">Offline threshold (seconds)</label><input type="number" id="offline_threshold_high" name="offline_threshold_high" min="10" value="{{ settings.offline_threshold_high }}"></div>
+        <div class="field" style="display:flex; align-items:flex-end;"><button type="button" class="btn btn-sm btn-test-tier" data-priority="high" style="width:100%;">Send test alert</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="priority-section priority-medium">
+      <div class="priority-heading">🟡 Medium priority cameras</div>
+      <div class="form-grid">
+        <div class="field full"><label for="webhook_url_medium">Webhook URL</label><input type="text" id="webhook_url_medium" name="webhook_url_medium" value="{{ settings.webhook_url_medium }}" placeholder="https://chat.googleapis.com/...">
+          <div class="field-hint">Leave blank to pause Medium priority notifications.</div></div>
+        <div class="field"><label for="offline_threshold_medium">Offline threshold (seconds)</label><input type="number" id="offline_threshold_medium" name="offline_threshold_medium" min="10" value="{{ settings.offline_threshold_medium }}"></div>
+        <div class="field" style="display:flex; align-items:flex-end;"><button type="button" class="btn btn-sm btn-test-tier" data-priority="medium" style="width:100%;">Send test alert</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="priority-section priority-low">
+      <div class="priority-heading">🟢 Low priority cameras</div>
+      <p class="field-hint" style="margin-bottom:14px;">Most relaxed timing - good for cameras where a slow response is fine.</p>
+      <div class="form-grid">
+        <div class="field full"><label for="webhook_url_low">Webhook URL</label><input type="text" id="webhook_url_low" name="webhook_url_low" value="{{ settings.webhook_url_low }}" placeholder="https://chat.googleapis.com/...">
+          <div class="field-hint">Leave blank to pause Low priority notifications.</div></div>
+        <div class="field"><label for="offline_threshold_low">Offline threshold (seconds)</label><input type="number" id="offline_threshold_low" name="offline_threshold_low" min="10" value="{{ settings.offline_threshold_low }}"></div>
+        <div class="field" style="display:flex; align-items:flex-end;"><button type="button" class="btn btn-sm btn-test-tier" data-priority="low" style="width:100%;">Send test alert</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="priority-heading">🔑 Account security (password resets)</div>
+    <p class="field-hint" style="margin-bottom:14px;">Used for "Forgot password" requests and admin notices - kept separate from camera alerts so a password reset never shows up in a camera Chat space.</p>
+    <div class="form-grid">
+      <div class="field full"><label for="admin_webhook_url">Admin/security webhook URL</label><input type="text" id="admin_webhook_url" name="admin_webhook_url" value="{{ settings.admin_webhook_url }}" placeholder="https://chat.googleapis.com/...">
+        <div class="field-hint">Reset codes are posted here for an admin to relay to the user.</div></div>
+      <div class="field full"><label for="sms_gateway_webhook_url">SMS gateway URL (optional)</label><input type="text" id="sms_gateway_webhook_url" name="sms_gateway_webhook_url" value="{{ settings.sms_gateway_webhook_url }}" placeholder="https://your-sms-provider.example.com/send">
+        <div class="field-hint">Only needed for real SMS delivery. Requires a paid SMS gateway account (Twilio, MSG91, etc.) - leave blank and phone-based OTPs are relayed through the webhook above instead, so the flow still works for testing today.</div></div>
+    </div>
+    <div class="btn-row">
+      <button type="button" class="btn btn-sm" id="btn-test-admin-webhook">Send test alert</button>
+    </div>
+  </div>
+
+  <div class="btn-row" style="margin-top:6px;">
+    <button type="submit" class="btn btn-primary">Save all settings</button>
+    <button type="button" class="btn" id="btn-test-all">Send test alert to all camera tiers</button>
+  </div>
+</form>
+
+<div id="test-alert-result" style="font-size:13px; color:var(--text-dim); margin-top:10px;"></div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+async function sendTestAlert(priority) {
+  const resultEl = document.getElementById('test-alert-result');
+  resultEl.textContent = 'Sending...';
+  try {
+    const res = await fetch("{{ url_for('api_test_alert') }}", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(priority ? { priority } : {}),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      resultEl.textContent = data.error || 'Failed to send.';
+      resultEl.style.color = 'var(--offline)';
+    } else {
+      resultEl.textContent = priority ? `Test alert sent to ${priority} priority's webhook.` : 'Test alert sent to every configured webhook.';
+      resultEl.style.color = 'var(--online)';
+    }
+  } catch (e) {
+    resultEl.textContent = 'Network error - is the server running?';
+    resultEl.style.color = 'var(--offline)';
+  }
+}
+
+document.querySelectorAll('.btn-test-tier').forEach((btn) => {
+  btn.addEventListener('click', () => sendTestAlert(btn.dataset.priority));
+});
+document.getElementById('btn-test-all').addEventListener('click', () => sendTestAlert(null));
+
+document.getElementById('btn-test-admin-webhook').addEventListener('click', async () => {
+  const resultEl = document.getElementById('test-alert-result');
+  resultEl.textContent = 'Sending...';
+  try {
+    const res = await fetch("{{ url_for('api_test_admin_webhook') }}", { method: 'POST' });
+    const data = await res.json();
+    if (!res.ok) {
+      resultEl.textContent = data.error || 'Failed to send.';
+      resultEl.style.color = 'var(--offline)';
+    } else {
+      resultEl.textContent = 'Test alert sent to the admin/security webhook.';
+      resultEl.style.color = 'var(--online)';
+    }
+  } catch (e) {
+    resultEl.textContent = 'Network error - is the server running?';
+    resultEl.style.color = 'var(--offline)';
+  }
+});
+</script>
+{% endblock %}

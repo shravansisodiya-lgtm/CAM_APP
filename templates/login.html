@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Log in - {{ org_name }}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+<div class="auth-wrap">
+  <div class="auth-card">
+    <div class="auth-title">{{ org_name }}</div>
+    <div class="auth-sub">Sign in to view the monitoring dashboard.</div>
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="flash {{ category }}">{{ message }}</div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    <form method="POST">
+      <div class="field"><label for="username">Username</label><input type="text" id="username" name="username" required autofocus></div>
+      <div class="field"><label for="password">Password</label><input type="password" id="password" name="password" required></div>
+      <button type="submit" class="btn btn-primary" style="width:100%;">Sign in</button>
+    </form>
+    <div class="auth-footer">
+      <a href="{{ url_for('forgot_password') }}">Forgot password?</a>
+    </div>
+    <div class="auth-footer">No account yet? <a href="{{ url_for('register') }}">Create one</a></div>
+  </div>
+</div>
+</body>
+</html>

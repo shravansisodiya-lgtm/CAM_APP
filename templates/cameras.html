@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Cameras - {{ org_name }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <div class="page-title">Cameras</div>
+    <div class="page-sub">{{ cameras|length }} camera{{ 's' if cameras|length != 1 else '' }} shown.{% if current_role != 'admin' %} View only - ask an administrator to make changes.{% endif %}</div>
+  </div>
+  {% if current_role == 'admin' %}
+  <div class="btn-row">
+    <button class="btn" id="btn-bulk-import">Bulk import</button>
+    <button class="btn btn-primary" id="btn-add-camera">+ Add camera</button>
+  </div>
+  {% endif %}
+</div>
+
+<div class="btn-row" style="margin-bottom:16px; flex-wrap:wrap;">
+  <a class="pill {{ 'active' if selected_branch == 'All' else '' }}" href="{{ url_for('cameras_page') }}">All</a>
+  {% for b in branches %}
+  <a class="pill {{ 'active' if selected_branch == b.branch else '' }}" href="{{ url_for('cameras_page', branch=b.branch) }}">{{ b.branch }} <span class="pill-count">{{ b.total }}</span></a>
+  {% endfor %}
+</div>
+
+<input type="text" id="table-search" class="search-input" placeholder="Search this list...">
+
+<div class="card">
+  {% if cameras %}
+  <table class="data-table">
+    <thead><tr><th>Status</th><th>Priority</th><th>Name</th><th>IP address</th><th>Branch</th><th>Last checked</th>{% if current_role == 'admin' %}<th></th>{% endif %}</tr></thead>
+    <tbody id="camera-table-body">
+      {% for cam in cameras %}
+      <tr data-id="{{ cam.id }}" data-name="{{ cam.name }}" data-ip="{{ cam.ip }}" data-branch="{{ cam.branch }}" data-priority="{{ cam.priority }}"
+          data-search="{{ cam.name|lower }} {{ cam.ip }} {{ cam.branch|lower }} {{ cam.priority }}">
+        <td>
+          {% if cam.is_online %}<span class="badge online"><span class="dot"></span>Online</span>
+          {% else %}<span class="badge offline"><span class="dot"></span>Offline</span>{% endif %}
+        </td>
+        <td><span class="badge priority-{{ cam.priority }}"><span class="dot"></span>{{ cam.priority|capitalize }}</span></td>
+        <td>{{ cam.name }}</td>
+        <td class="ip-cell">{{ cam.ip }}</td>
+        <td>{{ cam.branch }}</td>
+        <td class="ip-cell">{{ cam.last_checked or '—' }}</td>
+        {% if current_role == 'admin' %}
+        <td>
+          <div class="btn-row">
+            <button class="btn btn-sm btn-edit-camera">Edit</button>
+            <button class="btn btn-sm btn-danger btn-delete-camera">Delete</button>
+          </div>
+        </td>
+        {% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="empty-state"><div class="big">No cameras yet</div>{% if current_role == 'admin' %}<div>Click "Add camera" above to add your first one.</div>{% endif %}</div>
+  {% endif %}
+</div>
+
+{% if current_role == 'admin' %}
+<div class="modal-backdrop" id="camera-modal">
+  <div class="modal">
+    <h3 id="modal-title">Add camera</h3>
+    <div class="form-error" id="modal-error"></div>
+    <input type="hidden" id="camera-id">
+    <div class="field"><label for="camera-name">Camera name</label><input type="text" id="camera-name" placeholder="e.g. Indore_OFFICE"></div>
+    <div class="field"><label for="camera-ip">IP address</label><input type="text" id="camera-ip" placeholder="e.g. 192.168.1.188"></div>
+    <div class="field"><label for="camera-branch">Branch</label><input type="text" id="camera-branch" placeholder="e.g. Indore"></div>
+    <div class="field">
+      <label for="camera-priority">Priority</label>
+      <select id="camera-priority">
+        <option value="high">High</option>
+        <option value="medium" selected>Medium</option>
+        <option value="low">Low</option>
+      </select>
+      <div class="field-hint">Set the webhook and timing for each priority on the Settings page.</div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancel-modal">Cancel</button>
+      <button class="btn btn-primary" id="btn-save-camera">Save camera</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="delete-modal">
+  <div class="modal">
+    <h3>Remove this camera?</h3>
+    <p style="color:var(--text-dim); font-size:14px;" id="delete-modal-text"></p>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancel-delete">Cancel</button>
+      <button class="btn btn-danger" id="btn-confirm-delete">Remove camera</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-backdrop" id="bulk-modal">
+  <div class="modal">
+    <h3>Bulk import cameras</h3>
+    <p style="color:var(--text-dim); font-size:13px;">One camera per line: <code>name, ip, branch, priority</code> (priority is optional - defaults to Medium)</p>
+    <div class="field"><textarea id="bulk-text" rows="8" style="width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:6px; padding:10px; font-family:var(--font-mono);"></textarea></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-submit-bulk">Import pasted text</button>
+    </div>
+    <hr style="border-color:var(--border); margin:20px 0;">
+    <p style="color:var(--text-dim); font-size:13px;">Or upload an Excel file. Columns, in order: <code>Name</code>, <code>IP</code>, <code>Branch</code>, <code>Priority</code> (a header row is optional - it's detected and skipped automatically). <a href="{{ url_for('download_camera_template') }}" style="color:var(--accent);">Download a template</a></p>
+    <div class="field"><input type="file" id="bulk-file" accept=".xlsx"></div>
+    <div class="btn-row">
+      <button class="btn btn-primary" id="btn-submit-bulk-excel">Upload .xlsx</button>
+    </div>
+    <div class="form-error" id="bulk-error"></div>
+    <div id="bulk-result" style="font-size:13px; color:var(--text-dim);"></div>
+    <div class="modal-actions">
+      <button class="btn" id="btn-cancel-bulk">Close</button>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+{% if current_role == 'admin' %}
+<script src="{{ url_for('static', filename='js/cameras.js') }}"></script>
+{% endif %}
+<script>
+document.getElementById('table-search') && document.getElementById('table-search').addEventListener('input', function () {
+  var term = this.value.trim().toLowerCase();
+  document.querySelectorAll('#camera-table-body tr').forEach(function (row) {
+    var haystack = row.dataset.search || '';
+    row.style.display = !term || haystack.includes(term) ? '' : 'none';
+  });
+});
+</script>
+{% endblock %}
